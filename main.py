@@ -11,33 +11,29 @@ def read_root():
     return {"message": "나의 주식 API 서버가 정상 작동 중입니다!", "status": "online"}
 
 # 2. 특정 종목 주가 조회 API
-@app.get("/stock/{code}")
-def get_stock_price(code: str, days: int = 10):
+# 기존 코드 아래에 이어서 작성하세요.
+
+@app.get("/stocks/krx")
+def get_krx_list():
     """
-    code: 주식 종목 코드 (예: 005930)
-    days: 최근 며칠 치 데이터를 가져올지 결정 (기본값: 10일)
+    한국 거래소(KRX) 전체 상장 종목 리스트를 가져옵니다.
     """
     try:
-        # FinanceDataReader로 데이터 가져오기
-        df = fdr.DataReader(code)
+        # 1. KRX 전체 종목 데이터 가져오기
+        df_krx = fdr.StockListing('KRX')
         
-        # 데이터가 없는 경우 (잘못된 코드를 입력했을 때)
-        if df.empty:
-            raise HTTPException(status_code=404, detail="종목 코드를 찾을 수 없거나 데이터가 없습니다.")
+        # 2. JSON 변환 오류 방지: 빈칸(NaN)을 빈 문자열("")로 채우기
+        df_krx = df_krx.fillna("")
         
-        # 최근 'days' 일치 데이터만 추출
-        df = df.tail(days)
+        # 3. 데이터를 딕셔너리 리스트 형태로 변환
+        krx_list = df_krx.to_dict(orient="records")
         
-        # JSON으로 예쁘게 변환하기 위한 전처리 (날짜를 문자로 변환)
-        df = df.reset_index()
-        df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
-        
-        # 데이터를 딕셔너리 형태로 변환하여 반환
+        # 4. 결과 반환 (총 종목 수도 함께 알려주면 좋습니다)
         return {
-            "code": code,
-            "data": df.to_dict(orient="records")
+            "market": "KRX",
+            "total_count": len(krx_list),
+            "data": krx_list
         }
         
     except Exception as e:
-        # 서버 내부 오류 발생 시 안전하게 에러 메시지 반환
         raise HTTPException(status_code=500, detail=str(e))
