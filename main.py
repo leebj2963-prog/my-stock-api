@@ -1,34 +1,43 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import FinanceDataReader as fdr
-import datetime
 import pandas as pd
 
+# FastAPI 객체 생성
 app = FastAPI()
 
-@app.get("/api/stock_list")
-def get_stock_list():
-    df = fdr.StockListing('KRX')[['Code', 'Name']]
-    return df.to_dict(orient="records")
+# 1. 메인 화면 (루트 경로)
+@app.get("/")
+def read_root():
+    return {"message": "나의 주식 API 서버가 정상 작동 중입니다!", "status": "online"}
 
-@app.get("/api/stock_data/{code}")
-def get_stock_data(code: str):
-    start_date = datetime.datetime.now() - datetime.timedelta(days=1095)
-    
+# 2. 특정 종목 주가 조회 API
+@app.get("/stock/{code}")
+def get_stock_price(code: str, days: int = 10):
+    """
+    code: 주식 종목 코드 (예: 005930)
+    days: 최근 며칠 치 데이터를 가져올지 결정 (기본값: 10일)
+    """
     try:
-        df = fdr.DataReader(code, start_date)
-    except Exception:
-        return [] # 에러가 나면 빈 데이터 반환
-
-    # 🌟 [핵심 안전장치] 데이터가 아예 없거나, 종가/거래량 컬럼이 없으면 빈 리스트를 반환하여 튕김 방지!
-    if df.empty or 'Close' not in df.columns or 'Volume' not in df.columns:
-        return []
-
-    df = df.dropna(subset=['Close', 'Volume'])
-    
-    # 이동평균선 계산 (기존 v2.1 기능 이식)
-    for window in [5, 20, 60, 120, 240]:
-        df[f'MA{window}'] = df['Close'].rolling(window).mean()
+        # FinanceDataReader로 데이터 가져오기
+        df = fdr.DataReader(code)
         
-    df.reset_index(inplace=True)
-    df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
-    return df.fillna("").to_dict(orient="records")
+        # 데이터가 없는 경우 (잘못된 코드를 입력했을 때)
+        if df.empty:
+            raise HTTPException(status_code=404, detail="종목 코드를 찾을 수 없거나 데이터가 없습니다.")
+        
+        # 최근 'days' 일치 데이터만 추출
+        df = df.tail(days)
+        
+        # JSON으로 예쁘게 변환하기 위한 전처리 (날짜를 문자로 변환)
+        df = df.reset_index()
+        df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
+        
+        # 데이터를 딕셔너리 형태로 변환하여 반환
+        return {
+            "code": code,
+            "data": df.to_dict(orient="records")
+        }
+        
+    except Exception as e:
+        # 서버 내부 오류 발생 시 안전하게 에러 메시지 반환
+        raise HTTPException(status_code=500, detail=str(e))
