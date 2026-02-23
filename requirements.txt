@@ -1,5 +1,7 @@
 fastapi
 uvicorn
 finance-datareader
-pandas==2.0.3
+# numpy 버전을 2.0 미만으로 고정하여 호환성 문제 해결
+numpy<2.0.0
+pandas
 lxml
