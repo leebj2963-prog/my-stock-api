@@ -1,6 +1,4 @@
-yfinance
-requests
 fastapi
-uvicorn
 FinanceDataReader
+datetime
 pandas
