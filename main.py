@@ -26,7 +26,7 @@ def get_krx_list():
         raise HTTPException(status_code=500, detail=str(e))
 
 # 🌟 [추가] 시간이 오래 걸리는 '데이터 다운로드 + MA 계산' 작업을 따로 빼서 캐시(저장)합니다.
-@lru_cache(maxsize=100) # 최근 검색한 100개 종목의 결과를 메모리에 기억!
+@lru_cache(maxsize=30) # 최근 검색한 100개 종목의 결과를 메모리에 기억!
 def fetch_and_calculate_stock_data(code: str, days: int):
     df = fdr.DataReader(code)
     
